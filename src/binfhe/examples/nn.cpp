@@ -31,7 +31,7 @@
 #include <fstream>
 #include <string>
 #include "binfhe-constants.h"
-#include "lattice/lat-hal.h"
+#include "lwe-ciphertext-fwd.h"
 #include <sys/time.h>
 // Multi-processing
 #include <sys/wait.h>
@@ -75,10 +75,10 @@ using namespace lbcrypto;
 
 // Files are expected in the executable's directory
 #define PATH_TO_FILES       "buildotests/test/" //TODO FIXME!
-#define FILE_TXT_IMG        "/home/azency/Code/Work/dinn_binfhe/weights-and-biases/txt_img_test.txt"
-#define FILE_TXT_BIASES     "/home/azency/Code/Work/dinn_binfhe/weights-and-biases/txt_biases.txt"
-#define FILE_TXT_WEIGHTS    "/home/azency/Code/Work/dinn_binfhe/weights-and-biases/txt_weights.txt"
-#define FILE_TXT_LABELS     "/home/azency/Code/Work/dinn_binfhe/weights-and-biases/txt_labels.txt"
+#define FILE_TXT_IMG        "/home/azency/Code/Work/Dinn_Binfhe/weights-and-biases/txt_img_test.txt"
+#define FILE_TXT_BIASES     "/home/azency/Code/Work/Dinn_Binfhe/weights-and-biases/txt_biases.txt"
+#define FILE_TXT_WEIGHTS    "/home/azency/Code/Work/Dinn_Binfhe/weights-and-biases/txt_weights.txt"
+#define FILE_TXT_LABELS     "/home/azency/Code/Work/Dinn_Binfhe/weights-and-biases/txt_labels.txt"
 #define FILE_LATEX          "results_LaTeX.tex"
 #define FILE_STATISTICS     "results_stats.txt"
 
@@ -153,35 +153,12 @@ int main(int argc, char **argv)
     int el, l;
     int num_neurons_current_layer_in, num_neurons_current_layer_out;
 
-
-    if (VERBOSE)
-    {
-        cout << "Starting experiment to classify " << n_images;
-        if (!noisyLWE) cout << " noiseless";
-        cout << " encrypted MNIST images." << endl;
-        cout << "(Run: " << argv[0] << " )" << endl;
-        cout << "Execution with parameters... alpha = " << alpha << ", number of processes: " << N_PROC << endl;
-    }
-
-
-
     //! binfhecontext初始化 strat
     auto cc = BinFHEContext();
 
-    int p = 8; //明文模长，要把[0,p]迁移到[-p/2,p/2]上
-    // int p      = cc.GetMaxPlaintextSpace().ConvertToInt() * factor;  //! 这里的最大明文空间有问题，返回的是q/256,不知道为啥。。。。。。
+    bool test_BF = true;
 
-    // uint32_t n = 128;
-    // uint32_t N = 1<<12;
-    // NativeInteger q(1<<13); //q|2N
-    // NativeInteger Q(((1<<20) + 1));
-    // // double std = pow(2,-20);
-    // double std = 0.01;
-    // uint32_t baseKS = 1<<1;
-    // uint32_t baseG = 1<<1;
-    // uint32_t baseR = 2;
-    
-    // cc.GenerateBinFHEContext(n, N, q, Q, std, baseKS, baseG, baseR, GINX);
+    int p = 512;//明文模长，要把[0,p]迁移到[-p/2,p/2]上
 
     cc.GenerateBinFHEContext();
     int q = cc.GetParams()->GetLWEParams()->Getq().ConvertToInt();
@@ -203,19 +180,15 @@ int main(int argc, char **argv)
     std::cout << "Completed the key generation." << std::endl;
 
 
+    // auto fp = [](NativeInteger m, NativeInteger p1) -> NativeInteger {
+    //     if (m < p1/2)
+    //         return NativeInteger(1);
+    //     else
+    //         return p1 - 1 ;
+    // };
 
-    auto fp = [](NativeInteger m, NativeInteger p1) -> NativeInteger {
-        if (m < p1/2)
-            return NativeInteger(1);
-        else
-            return p1 - 1 ;
-    };
-
-    // Generate LUT from function f(x)
-    auto lut = cc.GenerateLUTviaFunction(fp, p);
-
-    
-    
+    // // Generate LUT from function f(x)
+    // auto lut = cc.GenerateLUTviaFunction(fp, p);
 
     //! binfhecontext初始化 end
 
@@ -331,10 +304,6 @@ int main(int argc, char **argv)
     //! 后续要用到的便量，提前定义；
     NativeInteger w_1;
 
-    // LweSample *multi_sum, *enc_image, *bootstrapped;
-
-    
-
     //! 图片的密文，以vector的型式存储
     vector<LWECiphertext> enc_imgae_1;
 
@@ -384,251 +353,239 @@ int main(int argc, char **argv)
 
 
     // for (int img = 0; img < ( (+1)*slice) && (img< n_images); /*img*/ )
-    for (int img = 0;(img< n_images); /*img*/ )
+    for (int img = 0;(img< n_images); /*img*/ ){
+        image = images[img];
+        label = labels[img];
+        ++img;
+
+        // Generate encrypted inputs for NN (LWE samples for each image's pixels on the fly)
+        // To be generic...
+        num_neurons_current_layer_out= topology[0];
+        num_neurons_current_layer_in = num_neurons_current_layer_out;
+
+        // enc_image = new_LweSample_array(num_neurons_current_layer_in, in_out_params);
+
+        for (int i = 0; i < num_neurons_current_layer_in; ++i)
+        {
+            pixel = image[i];
+            //! change to message space 
+            // mu = modSwitchToTorus32(pixel, space_msg);
+            if (noisyLWE)
             {
-                image = images[img];
-                label = labels[img];
-                ++img;
-
-                // Generate encrypted inputs for NN (LWE samples for each image's pixels on the fly)
-                // To be generic...
-                num_neurons_current_layer_out= topology[0];
-                num_neurons_current_layer_in = num_neurons_current_layer_out;
-
-                // enc_image = new_LweSample_array(num_neurons_current_layer_in, in_out_params);
-
-                for (int i = 0; i < num_neurons_current_layer_in; ++i)
-                {
-                    pixel = image[i];
-                    //! change to message space 
-                    // mu = modSwitchToTorus32(pixel, space_msg);
-                    if (noisyLWE)
-                    {
                         //! 进行加密
                         // lweSymEncrypt(enc_image + i, mu, alpha, secret->lwe_key);
                         //! 这里放进来，delte的时候清空它
                         auto ct = cc.Encrypt(sk, (pixel+p) % p, FRESH, p);
                         enc_imgae_1.push_back(ct);
 
-                    }
-                    else
-                    {
+            }
+            else
+            {
                         // lweNoiselessTrivial(enc_image + i, mu, in_out_params);
-                    }
-                }
+            }
+        }
 
-                // ========  FIRST LAYER(S)  ========
-                net_begin = clock();
+        // ========  FIRST LAYER(S)  ========
+        net_begin = clock();
 
-                // multi_sum = new_LweSample_array(num_neurons_current_layer_out, in_out_params);
-                for (l=0; l<num_wire_layers - 1 ; ++l)     // Note: num_wire_layers - 1 iterations; last one is special. Access weights from level l to l+1.
-                {
+        // multi_sum = new_LweSample_array(num_neurons_current_layer_out, in_out_params);
+        for (l=0; l<num_wire_layers - 1 ; ++l)     // Note: num_wire_layers - 1 iterations; last one is special. Access weights from level l to l+1.
+        {
                     // To be generic...
-                    num_neurons_current_layer_in = num_neurons_current_layer_out;
-                    num_neurons_current_layer_out= topology[l+1];
-                    bias = biases[l];
-                    weight_layer = weights[l];
-                    for (int j=0; j<num_neurons_current_layer_out; ++j)
-                    {
-                        w0 = bias[j];
-                        multi_sum_clear[j] = w0;
-                        //! change to message space
-                        auto ct = cc.EvalConstant((w0+p) % p, p);
-                        multi_sum_1.push_back(ct);
-                        // LWEPlaintext temp;
-                        // cc.Decrypt(sk, ct, &temp, p);
-
-                        // cout<<"bais"<<j<<"结果比较clear和enc      "<<multi_sum_clear[j]<<"      "<<temp<<endl;
-
-                        for (int i=0; i<num_neurons_current_layer_in; ++i)
-                        {
-                            x = image [i];  // clear input
-                            // int64_t temp_x;
-                            // cc.Decrypt(sk, enc_imgae_1[i], &temp_x, p);
-                            // cout<<"像素是"<<x<<"       "<<temp_x<<endl;
-
-                            w = weight_layer[i][j];  // w^dagger
-                            multi_sum_clear[j] += x * w; // process clear input
-
-                            //! 直接读取w_1
-                            w_1 = weights_1[l][i][j];
-                            //! 准备相乘,权重乘以像素,每次都要重新构造，非常减低效率，怎样去避免；
-                            auto temp_A = enc_imgae_1[i]->GetA().ModMul(w_1);
-                            auto temp_B = enc_imgae_1[i]->GetB().ModMul(w_1, enc_imgae_1[i]->GetModulus());
-
-                            //! 加到multi_sum上
-                            multi_sum_1[j]->GetA().ModAddEq(temp_A);
-                            multi_sum_1[j]->GetB().ModAddEq(temp_B, multi_sum_1[j]->GetModulus());
-
-                            // cout<<"密文的模场"<<multi_sum_1[j]->GetModulus()<<endl;
-
-                            // int64_t temp;
-                            // cc.Decrypt(sk, multi_sum_1[j], &temp, p);
-                            // temp = (temp<p/2)? temp:temp-p;
-                            // if(temp != multi_sum_clear[j] ){
-                            //     cout<<j<<"个神经云"<<i<<"次运算"<<"出错结果比较clear和enc      "<<multi_sum_clear[j]<<"      "<<temp<<endl;
-                            // }
-                            
-                        }
-                    }
-                }
-
-                // Bootstrap multi_sum
-                // bootstrapped = new_LweSample_array(num_neurons_current_layer_out, in_out_params);
-                bs_begin = clock();
-                for (int j=0; j<num_neurons_current_layer_out; ++j)
+            num_neurons_current_layer_in = num_neurons_current_layer_out;
+            num_neurons_current_layer_out= topology[l+1];
+            bias = biases[l];
+            weight_layer = weights[l];
+            for (int j=0; j<num_neurons_current_layer_out; ++j)
+            {
+                w0 = bias[j];
+                multi_sum_clear[j] = w0;
+                //! change to message space
+                auto ct = cc.EvalConstant((w0+p) % p, p);
+                multi_sum_1.push_back(ct);
+                for (int i=0; i<num_neurons_current_layer_in; ++i)
                 {
-                    /**
-                     *  Bootstrapping results in each coordinate 'bootstrapped[j]' to contain an LweSample
-                     *  of low-noise (= fresh LweEncryption) of 'mu_boot*phase(multi_sum[j])' (= per output neuron).
-                     */
-                    //! bootstrapping的同时，做一次示性函数，result = LWE(mu) iff phase(x)>0, LWE(-mu) iff phase(x)<0
-                    auto ct_sign = cc.EvalFunc(multi_sum_1[j], lut);
+                    x = image [i];  // clear input
+                    w = weight_layer[i][j];  // w^dagger
+                    multi_sum_clear[j] += x * w; // process clear input
 
-                    // auto ct_sign == cc.EvalSign(multi_sum_1[1]);
+                    //! 直接读取w_1
+                    w_1 = weights_1[l][i][j];
+                    //! 准备相乘,权重乘以像素,每次都要重新构造，非常减低效率，怎样去避免；
+                    auto temp_A = enc_imgae_1[i]->GetA().ModMul(w_1);
+                    auto temp_B = enc_imgae_1[i]->GetB().ModMul(w_1, enc_imgae_1[i]->GetModulus());
 
-                    // auto ct_sign =cc.GetBinFHEScheme()->MyEvalFunc(cc.GetParams(), cc.GetBTKey() , multi_sum_1[j], p);
+                    //! 加到multi_sum上
+                    multi_sum_1[j]->GetA().ModAddEq(temp_A);
+                    multi_sum_1[j]->GetB().ModAddEq(temp_B, multi_sum_1[j]->GetModulus());
+
+                    // cout<<"密文的模场"<<multi_sum_1[j]->GetModulus()<<endl;
+
+                    // int64_t temp;
+                    // cc.Decrypt(sk, multi_sum_1[j], &temp, p);
+                    // temp = (temp<p/2)? temp:temp-p;
+                    // if(temp != multi_sum_clear[j] ){
+                    //     cout<<j<<"个神经云"<<i<<"次运算"<<"出错结果比较clear和enc      "<<multi_sum_clear[j]<<"      "<<temp<<endl;
+                    // 
+                }
+            }
+        }
+
+        if(test_BF)
+        {
+            for(int i=0;i<p;i++)
+            {
+                LWECiphertext temp = cc.Encrypt(sk,i,FRESH,p);
+                auto ct_sign = cc.MyEvalFunc(temp, q, p);
+                LWEPlaintext tempp;
+                cc.Decrypt(sk, ct_sign, &tempp, p);
+                cout<<"真实值 和 FB值 分别是"<<i<<"    "<<tempp<<endl;
+
+            }
+        }
+            
+
+
+
+        // Bootstrap multi_sum
+        // bootstrapped = new_LweSample_array(num_neurons_current_layer_out, in_out_params);
+        bs_begin = clock();
+        for (int j=0; j<num_neurons_current_layer_out; ++j)
+        {
+            /**
+                *  Bootstrapping results in each coordinate 'bootstrapped[j]' to contain an LweSample
+                *  of low-noise (= fresh LweEncryption) of 'mu_boot*phase(multi_sum[j])' (= per output neuron).
+                */
+            //! bootstrapping的同时，做一次示性函数，result = LWE(mu) iff phase(x)>0, LWE(-mu) iff phase(x)<0
+            auto ct_sign = cc.MyEvalFunc(multi_sum_1[j], q, p);
+
+            // auto ct_sign == cc.EvalSign(multi_sum_1[1]);
+
+            // auto ct_sign =cc.GetBinFHEScheme()->MyEvalFunc(cc.GetParams(), cc.GetBTKey() , multi_sum_1[j], p);
+            
+            // auto ct_sign = cc.EvalSign(multi_sum_1[j]);
+            // cout<<"自举后的LWE模长度"<<ct_sign->GetA().GetModulus()<<endl;
+            LWEPlaintext temp,temp1;
+            // cc.Decrypt(cc.GetBTKey().skN, ct_sign, &temp, p);
+            cc.Decrypt(sk, ct_sign, &temp, p);
+            cc.Decrypt(sk, multi_sum_1[j], &temp1, p);
+            temp = (temp<p/2)? temp:temp-p;
+            temp1 = (temp1<p/2)? temp1:temp1-p;
+            if (temp*multi_sum_clear[j] <= 0 || true){
+                cout<<"自举前的真实值和、密文值 和 自举后的密文值"<<multi_sum_clear[j]<< "     " <<temp1<< "     "<<temp<<endl;
+            } 
+            
+            bootstrapped_1.push_back(ct_sign);
+
+        }
+
+        bs_end = clock();
+        time_bootstrappings = bs_end - bs_begin;
+        // cout<< time_bootstrappings;
+        total_time_bootstrappings += time_bootstrappings;
+        time_per_bootstrapping = time_bootstrappings*avg_bs;
+        if (VERBOSE) cout <<  time_per_bootstrapping*clocks2seconds << " [sec/bootstrapping]" << endl;
+
+        //! 清空multi_sum_1
+        multi_sum_1.clear();
+        // ========  LAST (SECOND) LAYER  ========
+        max_score = threshold_scores;
+        max_score_clear = threshold_scores;
+
+        bias = biases[l];
+        weight_layer = weights[l];
+        l++;
+        num_neurons_current_layer_in = num_neurons_current_layer_out;
+        num_neurons_current_layer_out= topology[l]; // l == L = 2
+        // multi_sum = new_LweSample_array(num_neurons_current_layer_out, in_out_params); // TODO possibly overwrite storage
+        for (int j=0; j<num_neurons_current_layer_out; ++j)
+        {
+            w0 = bias[j];
+            output_clear[j] = w0;
+            //! 同样地，把bias先加上去
+            auto ct = cc.EvalConstant((w0+p)%p, p);
+            multi_sum_1.push_back(ct);                 
+
+            for (int i=0; i<num_neurons_current_layer_in; ++i)
+            {
+                w = weight_layer[i][j];
+                //! 乘起来加进去
+                // lweAddMulTo(multi_sum + j, w, bootstrapped + i, in_out_params); // process encrypted input
+
+                // //! 将w转换到NativeInteger上，也是每次才进行构造，效率太低了
+                // NativeInteger* w_1 = new NativeInteger;
+                // w_1->SetValue(to_string((w+5*plain_mod)%plain_mod));
+
+                //! 直接读取w1
+                w_1 = weights_1[l-1][i][j]; 
+                //! 准备相乘,权重乘以像素,每次都要重新构造，非常减低效率，怎样去避免；
+                auto temp_A = bootstrapped_1[i]->GetA().ModMul(w_1);
+                auto temp_B = bootstrapped_1[i]->GetB().ModMulFast(w_1, bootstrapped_1[i]->GetModulus());
+                // (*temp)->GetB().ModMulFastEq(w_1,cc.GetMaxPlaintextSpace());
+
+                //! 加到multi_sum上
+                multi_sum_1[j]->GetA().ModAddEq(temp_A);
+                multi_sum_1[j]->GetB().ModAddFastEq(temp_B, multi_sum_1[j]->GetModulus());
+
+                // process clear input
+                if (multi_sum_clear[i] < 0)
+                    output_clear[j] -= w;
+                else
+                    output_clear[j] += w;
+
+                //! 进行比较
+                int64_t temp;
+                cc.Decrypt(sk, multi_sum_1[j], &temp, p);
+                temp = (temp<p/2)? temp:temp-p;
+                if(temp != output_clear[j] ){
+                    cout<<j<<"个神经云"<<i<<"次运算"<<"出错结果比较clear和enc      "<<output_clear[j]<<"      "<<temp<<endl;
+                }
+            }
+
+            //!这里进行解密     
+            cc.Decrypt(sk, multi_sum_1[j], &score_1, p);
+            score_1 = (score_1>p/2)? score_1%p-p: score_1%p;
+            if (score_1 > max_score)
+            {
+                max_score = score_1;
+                class_enc = j;
+            }
+            score_clear = output_clear[j];
+            if (score_clear > max_score_clear)
+            {
+                max_score_clear = score_clear;
+                class_clear = j;
+            }
+            //! 比较
+            cout<<"score_1 和 score_clear 分别是"<<score_1<<"   "<<score_clear<<endl;
+        }
                     
-                    // auto ct_sign = cc.EvalSign(multi_sum_1[j]);
-                    // cout<<"自举后的LWE模长度"<<ct_sign->GetA().GetModulus()<<endl;
-                    LWEPlaintext temp,temp1;
-                    // cc.Decrypt(cc.GetBTKey().skN, ct_sign, &temp, p);
-                    cc.Decrypt(sk, ct_sign, &temp, p);
-                    cc.Decrypt(sk, multi_sum_1[j], &temp1, p);
-                    temp = (temp<p/2)? temp:temp-p;
-                    temp1 = (temp1<p/2)? temp1:temp1-p;
-                    if (temp*multi_sum_clear[j] <= 0 || true){
-                        cout<<"自举前的真实值和、密文值 和 自举后的密文值"<<multi_sum_clear[j]<< "     " <<temp1<< "     "<<temp<<endl;
-                    } 
-                    
-                    bootstrapped_1.push_back(ct_sign);
+        if (class_enc != label)
+        {
+            count_errors++;
+            if (failed_bs)
+                count_errors_with_failed_bs++;
+        }
 
-                }
+        if (class_clear != class_enc)
+        {
+            count_disagreements++;
+            if (failed_bs)
+                count_disagreements_with_failed_bs++;
 
-                bs_end = clock();
-                time_bootstrappings = bs_end - bs_begin;
-                // cout<< time_bootstrappings;
-                total_time_bootstrappings += time_bootstrappings;
-                time_per_bootstrapping = time_bootstrappings*avg_bs;
-                if (VERBOSE) cout <<  time_per_bootstrapping*clocks2seconds << " [sec/bootstrapping]" << endl;
+            if (class_clear == label)
+                count_disag_pro_clear++;
+            else if (class_enc == label)
+                count_disag_pro_hom++;
+        }
+        net_end = clock();
+        time_per_classification = net_end - net_begin;
+        total_time_network += time_per_classification;
+        if (VERBOSE) cout << "            "<< time_per_classification*clocks2seconds <<" [sec/classification]" << endl;
 
-                //! 清空multi_sum_1
-                multi_sum_1.clear();
-
-
-                // ========  LAST (SECOND) LAYER  ========
-                max_score = threshold_scores;
-                max_score_clear = threshold_scores;
-
-                bias = biases[l];
-                weight_layer = weights[l];
-                l++;
-                num_neurons_current_layer_in = num_neurons_current_layer_out;
-                num_neurons_current_layer_out= topology[l]; // l == L = 2
-                // multi_sum = new_LweSample_array(num_neurons_current_layer_out, in_out_params); // TODO possibly overwrite storage
-                for (int j=0; j<num_neurons_current_layer_out; ++j)
-                {
-                    w0 = bias[j];
-                    output_clear[j] = w0;
-                    //! 同样地，把bias先加上去
-                    auto ct = cc.EvalConstant((w0+p)%p, p);
-                    multi_sum_1.push_back(ct);
-                    LWEPlaintext temp;
-                    cc.Decrypt(sk, multi_sum_1[j], &temp, p);
-
-                    cout<<"第二层 bais 结果比较clear和enc      "<<output_clear[j]<<"      "<<temp<<endl;                    
-
-                    for (int i=0; i<num_neurons_current_layer_in; ++i)
-                    {
-                        w = weight_layer[i][j];
-                        //! 乘起来加进去
-                        // lweAddMulTo(multi_sum + j, w, bootstrapped + i, in_out_params); // process encrypted input
-
-                        // //! 将w转换到NativeInteger上，也是每次才进行构造，效率太低了
-                        // NativeInteger* w_1 = new NativeInteger;
-                        // w_1->SetValue(to_string((w+5*plain_mod)%plain_mod));
-
-                        //! 直接读取w1
-                        w_1 = weights_1[l-1][i][j]; 
-                        //! 准备相乘,权重乘以像素,每次都要重新构造，非常减低效率，怎样去避免；
-                        auto temp_A = bootstrapped_1[i]->GetA().ModMul(w_1);
-                        auto temp_B = bootstrapped_1[i]->GetB().ModMulFast(w_1, bootstrapped_1[i]->GetModulus());
-                        // (*temp)->GetB().ModMulFastEq(w_1,cc.GetMaxPlaintextSpace());
-
-                        //! 加到multi_sum上
-                        multi_sum_1[j]->GetA().ModAddEq(temp_A);
-                        multi_sum_1[j]->GetB().ModAddFastEq(temp_B, multi_sum_1[j]->GetModulus());
-
-                        
-
-
-                        // process clear input
-                        if (multi_sum_clear[i] < 0)
-                            output_clear[j] -= w;
-                        else
-                            output_clear[j] += w;
-
-                        LWEPlaintext temp;
-                        cc.Decrypt(sk, multi_sum_1[j], &temp, p);
-                        cout<<"第二层 bais 结果比较clear和enc      "<<output_clear[j]<<"      "<<temp<<endl; 
-
-                        
-
-                    }
-                    //!这里进行解密
-                    // score = lwePhase(multi_sum + j, secret->lwe_key);
-
-                    
-                    cc.Decrypt(sk, multi_sum_1[j], &score_1, p);
-                    score_1 = (score_1>p/2)? score_1%p-p: score_1%p;
-                    if (score_1 > max_score)
-                    {
-                        max_score = score_1;
-                        class_enc = j;
-                    }
-                    score_clear = output_clear[j];
-                    if (score_clear > max_score_clear)
-                    {
-                        max_score_clear = score_clear;
-                        class_clear = j;
-                    }
-
-                    //! 比较
-                    cout<<"score_1 和 score_clear 分别是"<<score_1<<"   "<<score_clear<<endl;
-                }
-
-                if (class_enc != label)
-                {
-                    count_errors++;
-                    if (failed_bs)
-                        count_errors_with_failed_bs++;
-                }
-
-                if (class_clear != class_enc)
-                {
-                    count_disagreements++;
-                    if (failed_bs)
-                        count_disagreements_with_failed_bs++;
-
-                    if (class_clear == label)
-                        count_disag_pro_clear++;
-                    else if (class_enc == label)
-                        count_disag_pro_hom++;
-                }
-                net_end = clock();
-                time_per_classification = net_end - net_begin;
-                total_time_network += time_per_classification;
-                if (VERBOSE) cout << "            "<< time_per_classification*clocks2seconds <<" [sec/classification]" << endl;
-                
-                // free memory
-                // delete_LweSample_array(num_neurons_in,     enc_image);
-                // delete_LweSample_array(num_neurons_hidden, bootstrapped);
-                // delete_LweSample_array(num_neurons_out,    multi_sum);
-                enc_imgae_1.clear();
-                bootstrapped_1.clear();
-                multi_sum_1.clear();
-
-
+        enc_imgae_1.clear();
+        bootstrapped_1.clear();
+        multi_sum_1.clear();
 
     }
 
@@ -707,7 +664,9 @@ int main(int argc, char **argv)
     delete[] labels;
 
     return 0;
+
 }
+
 
 
 void deleteTensor(int*** tensor, int dim_tensor, const int* dim_vec)

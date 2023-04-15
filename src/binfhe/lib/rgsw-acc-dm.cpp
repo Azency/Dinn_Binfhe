@@ -32,6 +32,8 @@
 #include "rgsw-acc-dm.h"
 
 #include <string>
+#include "lattice/lat-hal.h"
+#include "math/hal/intnat/backendnat.h"
 
 namespace lbcrypto {
 
@@ -74,6 +76,7 @@ void RingGSWAccumulatorDM::EvalAcc(const std::shared_ptr<RingGSWCryptoParams> pa
 
     for (size_t i = 0; i < n; ++i) {
         NativeInteger aI = q.ModSub(a[i], q);
+        // NativeInteger aI(a[i] % q);
         for (size_t k = 0; k < digitsR.size(); ++k, aI /= NativeInteger(baseR)) {
             uint32_t a0 = (aI.Mod(baseR)).ConvertToInt();
             if (a0)

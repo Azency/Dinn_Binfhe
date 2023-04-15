@@ -34,6 +34,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 #include "lattice/lat-hal.h"
 #include "lwe-privatekey.h"
 #include "math/hal/intnat/backendnat.h"
@@ -196,14 +197,14 @@ uint32_t checkInputFunction(std::vector<NativeInteger> lut, NativeInteger mod) {
 LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams> params, const RingGSWBTKey& EK,
                                      ConstLWECiphertext ct, int p) const {
     auto f = [](NativeInteger x, NativeInteger q, NativeInteger Q, int p) -> NativeInteger {
-        return ((x%q) <= q/2) ? (NativeInteger(q/p) ): NativeInteger((p-1)*(q/p));
+        return ((x) < q/2) ? (NativeInteger(q/p) ): NativeInteger((p-1)*(q/p));
     };
     // auto ct1 = std::make_shared<LWECiphertextImpl>(*ct);
 
     // auto ct2 = std::make_shared<LWECiphertextImpl>(*ct1);
     // auto& LWEParams = params->GetLWEParams();
     auto ct1 = std::make_shared<LWECiphertextImpl>(*ct);
-    LWEscheme->EvalAddConstEq(ct1, NativeInteger(128));
+    // LWEscheme->EvalAddConstEq(ct1, NativeInteger(128));
     NativeInteger fmod(params->GetLWEParams()->Getq());
 
     // return MyBootstrapFunc(params, EK, ct1, f, fmod, p);
@@ -228,34 +229,33 @@ LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams>
 
     ct1 = LWEscheme->ModSwitch(NativeInteger(2*N), ct1);
 
-    ct1 = LWEscheme->ModSwitch(Q, ct1);
+    // ct1 = LWEscheme->ModSwitch(Q, ct1);
 
     // For specific function evaluation instead of generalbootstrapping
     NativeInteger ctMod    = ct1->GetModulus(); //q
     uint32_t factor        = (2 * N / ctMod.ConvertToInt());
     const NativeInteger& b = ct1->GetB();
     for (size_t j = 0; j < (ctMod >> 1 ); ++j) {  //q/2
+        // NativeInteger temp = NativeInteger(2*N) - b;
         NativeInteger temp = b.ModSub(j, ctMod);
         // m[j * factor]      = Q.ConvertToInt() / fmod.ConvertToInt() * f(temp, ctMod, fmod, p);
-        m[j * factor] = (temp%ctMod < ctMod/2)?  Q/p :(p-1)*Q/p;
-        // std::cout<<"测试多项式的系数"<<m[j * factor]<<std::endl; 
+        m[j * factor] = (temp%ctMod < ctMod/2)?  Q/p : (p-1)*Q/p;
+        
     }
     std::vector<NativePoly> res(2);
     // no need to do NTT as all coefficients of this poly are zero
     res[0] = NativePoly(polyParams, Format::EVALUATION, true);
     res[1] = NativePoly(polyParams, Format::COEFFICIENT, false);
-    // std::vector<NativePoly> res;
-    // res.push_back(NativePoly(polyParams, Format::EVALUATION, true));
-    // res.push_back(NativePoly(polyParams, Format::COEFFICIENT, false));
     res[1].SetValues(std::move(m), Format::COEFFICIENT);
     res[1].SetFormat(Format::EVALUATION);
 
-    // std::cout<<"res的长度是"<<res.size()<<std::endl;
 
     // main accumulation computation
     // the following loop is the bottleneck of bootstrapping/binary gate
     // evaluation
     auto acc = std::make_shared<RLWECiphertextImpl>(std::move(res));
+
+
     ACCscheme->EvalAcc(RGSWParams, ek, acc, ct1->GetA());
 
     std::vector<NativePoly>& accVec = acc->GetElements();
@@ -264,6 +264,7 @@ LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams>
     accVec[0] = accVec[0].Transpose();
     accVec[0].SetFormat(Format::COEFFICIENT);
     accVec[1].SetFormat(Format::COEFFICIENT);
+
 
     auto ctExt      = std::make_shared<LWECiphertextImpl>(std::move(accVec[0].GetValues()), std::move(accVec[1][0]));
     
@@ -283,7 +284,7 @@ LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams>
     // std::cout<<"模切换之后，密文的维度n,密文的Mod分别是  "<<ctMS->GetA().GetLength() <<"  "<< ctMS->GetA().GetModulus() <<std::endl;
     
 
-    return ct1;
+    return ctMS;
     
 
 }

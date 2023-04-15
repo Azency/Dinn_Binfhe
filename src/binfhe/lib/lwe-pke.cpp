@@ -68,7 +68,7 @@ LWECiphertext LWEEncryptionScheme::Encrypt(const std::shared_ptr<LWECryptoParams
     s.SwitchModulus(mod);
 
     NativeInteger b = (m % p) * (mod / p) + params->GetDgg().GenerateInteger(mod);
-    // NativeInteger b = ;
+    // NativeInteger b = (m % p) * (mod / p);
 
 #if defined(BINFHE_DEBUG)
     std::cout << b % mod << std::endl;

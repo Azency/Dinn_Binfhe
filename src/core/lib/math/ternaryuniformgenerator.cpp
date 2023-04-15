@@ -64,20 +64,20 @@ VecType TernaryUniformGeneratorImpl<VecType>::GenerateVector(usint size, const t
         }
     }
 
-    //! 新加的
-    if (h == 0) {
-        // regular ternary distribution
+    // //! 新加的
+    // if (h == 0) {
+    //     // regular ternary distribution
 
-        int32_t randomNumber;
+    //     int32_t randomNumber;
 
-        for (usint i = 0; i < size; i++) {
-            randomNumber = m_distribution(PseudoRandomNumberGenerator::GetPRNG());
-            if (randomNumber < 0)
-                v[i] = 0;
-            else
-                v[i] = typename VecType::Integer(1);
-        }
-    }
+    //     for (usint i = 0; i < size; i++) {
+    //         randomNumber = m_distribution(PseudoRandomNumberGenerator::GetPRNG());
+    //         if (randomNumber < 0)
+    //             v[i] = 0;
+    //         else
+    //             v[i] = typename VecType::Integer(1);
+    //     }
+    // }
     else {
         int32_t randomIndex;
         std::uniform_int_distribution<int> distrHWT = std::uniform_int_distribution<int>(0, size - 1);

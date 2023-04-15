@@ -34,6 +34,7 @@
  */
 
 #include "binfhecontext.h"
+#include <cmath>
 #include <string>
 #include <unordered_map>
 #include "binfhe-constants.h"
@@ -53,27 +54,27 @@ void BinFHEContext::GenerateBinFHEContext(uint32_t n, uint32_t N, const NativeIn
 
 void BinFHEContext::GenerateBinFHEContext(){
 
-    int N = 2048;
+    int N = 1<<9;
     int n = 128;
-    int baseG = 1<<5;
-    int baseKS = 1<<5;
-    uint64_t qKS = 1 << 26;
+    int baseG = 1<<15;
+    int baseKS = 1<<4;
+    uint64_t qKS = 1 << 30;
+    int baseR = 1<<2;
 
-    NativeInteger q = NativeInteger(1<<12);
+    BINFHE_METHOD method = GINX;
 
-    int logQ = 55;
+    NativeInteger q = NativeInteger(1<<30);
 
-    int ringDim = N;
+    int logQ = 50;
 
-    // NativeInteger Q = PreviousPrime<NativeInteger>(FirstPrime<NativeInteger>(logQ, ringDim), ringDim);
-    NativeInteger Q((1<<20) + 1);
-    // q = N*2 by default for maximum plaintext space, if needed for arbitrary function evlauation, q = ringDim/2
 
-    auto lweparams  = std::make_shared<LWECryptoParams>(n, N, q, Q, Q, 3.19, baseKS);
-    auto rgswparams = std::make_shared<RingGSWCryptoParams>(N, Q, q, baseG, 23, GINX, 3.19, false);
+    NativeInteger Q = PreviousPrime<NativeInteger>(FirstPrime<NativeInteger>(logQ, 2*N), 2*N);
+    
+    auto lweparams  = std::make_shared<LWECryptoParams>(n, N, q, Q, qKS, 0, baseKS);
+    auto rgswparams = std::make_shared<RingGSWCryptoParams>(N, Q, q, baseG, baseR, method, 0, false);
 
     m_params       = std::make_shared<BinFHECryptoParams>(lweparams, rgswparams);
-    m_binfhescheme = std::make_shared<BinFHEScheme>(GINX);
+    m_binfhescheme = std::make_shared<BinFHEScheme>(method);
 
 
 }
@@ -143,8 +144,8 @@ void BinFHEContext::GenerateBinFHEContext(BINFHE_PARAMSET set, bool arbFunc, uin
     n = 128;
     baseG = 1<<3;
     int baseKS = 2;
-    auto lweparams  = std::make_shared<LWECryptoParams>(n, ringDim, q, Q, qKS, 3.19, baseKS);
-    auto rgswparams = std::make_shared<RingGSWCryptoParams>(ringDim, Q, q, baseG, 23, method, 3.19,
+    auto lweparams  = std::make_shared<LWECryptoParams>(n, ringDim, q, Q, qKS, 1, baseKS);
+    auto rgswparams = std::make_shared<RingGSWCryptoParams>(ringDim, Q, q, baseG, 23, method, 1,
                                                             ((logQ != 11) && timeOptimization));
 
     m_params       = std::make_shared<BinFHECryptoParams>(lweparams, rgswparams);
