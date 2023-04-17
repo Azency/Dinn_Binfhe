@@ -54,10 +54,10 @@ void BinFHEContext::GenerateBinFHEContext(uint32_t n, uint32_t N, const NativeIn
 
 void BinFHEContext::GenerateBinFHEContext(){
 
-    int N = 1<<9;
+    int N = 512;
     int n = 128;
-    int baseG = 1<<15;
-    int baseKS = 1<<4;
+    int baseG = 1<<30;
+    int baseKS = 1<<8;
     uint64_t qKS = 1 << 30;
     int baseR = 1<<2;
 
