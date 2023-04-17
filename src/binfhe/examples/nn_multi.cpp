@@ -48,7 +48,7 @@ using namespace lbcrypto;
 #define VERBOSE 1
 #define STATISTICS true
 #define WRITELATEX false
-#define N_PROC 1
+#define N_PROC 4
 
 // Security constants
 #define SECLEVEL 80
@@ -71,7 +71,7 @@ using namespace lbcrypto;
 #define NUM_NEURONS_HIDDEN 30
 #define NUM_NEURONS_OUTPUT 10
 
-#define CARD_TESTSET 10000
+#define CARD_TESTSET 80
 
 // Files are expected in the executable's directory
 #define PATH_TO_FILES       "buildotests/test/" //TODO FIXME!
@@ -210,6 +210,7 @@ int main(int argc, char **argv)
             image_count = 0;
             filling_image++;
         }
+        if (filling_image >= n_images) break;
     }
     file_images.close();
 
