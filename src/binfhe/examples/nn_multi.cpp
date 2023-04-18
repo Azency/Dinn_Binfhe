@@ -557,7 +557,7 @@ int main(int argc, char **argv)
                 bootstrapped_1.clear();
                 multi_sum_1.clear();
 
-                cout<<"Process "<<id_proc<<"  image "<< img <<"output the result :"<<"\n";
+                cout<<"Process "<<id_proc<<"  image "<< img <<" output the result :"<<"\n";
                 cout<<"real label 、result of plain net、result of encrypted net are "<<label<<"  "<<class_clear<<"  "<<class_enc<<endl;
                 cout<<"-------------------------------------------------------------"<<endl;
             }

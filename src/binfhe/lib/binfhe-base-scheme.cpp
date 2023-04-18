@@ -199,16 +199,8 @@ LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams>
     auto f = [](NativeInteger x, NativeInteger q, NativeInteger Q, int p) -> NativeInteger {
         return ((x) < q/2) ? (NativeInteger(q/p) ): NativeInteger((p-1)*(q/p));
     };
-    // auto ct1 = std::make_shared<LWECiphertextImpl>(*ct);
-
-    // auto ct2 = std::make_shared<LWECiphertextImpl>(*ct1);
-    // auto& LWEParams = params->GetLWEParams();
     auto ct1 = std::make_shared<LWECiphertextImpl>(*ct);
-    // LWEscheme->EvalAddConstEq(ct1, NativeInteger(128));
     NativeInteger fmod(params->GetLWEParams()->Getq());
-
-    // return MyBootstrapFunc(params, EK, ct1, f, fmod, p);
-
 
     const RingGSWACCKey ek = EK.BSkey;
     if (ek == nullptr) {
@@ -225,22 +217,14 @@ LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams>
     uint32_t N      = LWEParams->GetN();
     NativeVector m(N, Q);
 
-    //! 把模长度拉回到2N
-
     ct1 = LWEscheme->ModSwitch(NativeInteger(2*N), ct1);
-
-    // ct1 = LWEscheme->ModSwitch(Q, ct1);
 
     // For specific function evaluation instead of generalbootstrapping
     NativeInteger ctMod    = ct1->GetModulus(); //q
-    uint32_t factor        = (2 * N / ctMod.ConvertToInt());
     const NativeInteger& b = ct1->GetB();
     for (size_t j = 0; j < (ctMod >> 1 ); ++j) {  //q/2
-        // NativeInteger temp = NativeInteger(2*N) - b;
         NativeInteger temp = b.ModSub(j, ctMod);
-        // m[j * factor]      = Q.ConvertToInt() / fmod.ConvertToInt() * f(temp, ctMod, fmod, p);
-        m[j * factor] = (temp%ctMod < ctMod/2)?  Q/p : (p-1)*Q/p;
-        
+        m[j] = (temp%ctMod < ctMod/2)?  Q/p : (p-1)*Q/p;        
     }
     std::vector<NativePoly> res(2);
     // no need to do NTT as all coefficients of this poly are zero
@@ -257,6 +241,17 @@ LWECiphertext BinFHEScheme::MyEvalFunc(const std::shared_ptr<BinFHECryptoParams>
 
 
     ACCscheme->EvalAcc(RGSWParams, ek, acc, ct1->GetA());
+
+    NativeVector a = ct1->GetA();
+    // auto mod        = a.GetModulus();
+    // uint32_t n      = a.GetLength();
+    // uint32_t M      = 2 * N;
+    // uint32_t modInt = mod.ConvertToInt();
+
+    // for (size_t i = 0; i < n; ++i) {
+    //     // handles -a*E(1) and handles -a*E(-1) = a*E(1)
+    //     ACCscheme->AddToAccCGGI(params, (*ek)[0][0][i], (*ek)[0][1][i], mod.ModSub(a[i], mod) * (M / modInt), acc);
+    // }
 
     std::vector<NativePoly>& accVec = acc->GetElements();
     // the accumulator result is encrypted w.r.t. the transposed secret key

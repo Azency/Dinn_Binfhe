@@ -54,18 +54,18 @@ void BinFHEContext::GenerateBinFHEContext(uint32_t n, uint32_t N, const NativeIn
 
 void BinFHEContext::GenerateBinFHEContext(){
 
-    int N = 512;
-    int n = 128;
-    int baseG = 1<<30;
-    int baseKS = 1<<8;
-    uint64_t qKS = 1 << 30;
+    int N = 1024;
+    int n = 256;
+    int baseG = 1<<15;
+    int baseKS = 1<<5;
+    uint64_t qKS = 1 << 15;
     int baseR = 1<<2;
 
     BINFHE_METHOD method = GINX;
 
-    NativeInteger q = NativeInteger(1<<30);
+    NativeInteger q = NativeInteger(1<<15);
 
-    int logQ = 50;
+    int logQ = 15;
 
 
     NativeInteger Q = PreviousPrime<NativeInteger>(FirstPrime<NativeInteger>(logQ, 2*N), 2*N);

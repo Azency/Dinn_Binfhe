@@ -1,0 +1,7 @@
+Errors: 4 / 80 (5 %)
+Disagreements: 0 (pro-clear/pro-hom: 0 / 0)
+Wrong bootstrappings: 0
+Errors with failed bootstrapping: 0
+Disagreements with failed bootstrapping: 0
+Avg. time for the evaluation of the network (seconds): 8.59398
+Avg. time per bootstrapping (seconds): 0.284668

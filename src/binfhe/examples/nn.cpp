@@ -71,7 +71,7 @@ using namespace lbcrypto;
 #define NUM_NEURONS_HIDDEN 30
 #define NUM_NEURONS_OUTPUT 10
 
-#define CARD_TESTSET 10000
+#define CARD_TESTSET 5
 
 // Files are expected in the executable's directory
 #define PATH_TO_FILES       "buildotests/test/" //TODO FIXME!
@@ -210,6 +210,7 @@ int main(int argc, char **argv)
             image_count = 0;
             filling_image++;
         }
+        if (filling_image>=n_images) break;
     }
     file_images.close();
 
